@@ -1,0 +1,528 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>光影遊戲 Light and Shadow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Lilita+One&family=Noto+Sans+TC:wght@500;700;900&display=swap">
+<style>
+/* Layout: composition-notebook marble frame, one white sticker-panel stage, scoreboard on top, one game view at a time. Single deliberate light look. */
+:root {
+  --ink: #1f1f1f;
+  --paper: #ffffff;
+  --cream: #fff6da;
+  --pink: #ff8fb8;  --pink-l: #ffd6e5;
+  --mint: #6ed8b9;  --mint-l: #d3f5ea;
+  --sun: #ffd43b;   --sun-l: #fff1b8;
+  --lilac: #b49cff; --lilac-l: #e4dbff;
+  --sky: #6ec3ff;   --sky-l: #d4eeff;
+  --peach: #ffa470; --peach-l: #ffe0cc;
+  --muted: #55525e;
+  --bad: #e23d6d;
+  --display: "Lilita One", "Baloo 2", "Noto Sans TC", system-ui, sans-serif;
+  --body: "Baloo 2", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --zh: "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", sans-serif;
+  color-scheme: light;
+}
+html, body { height: 100%; }
+body {
+  background: #e9e9e9 var(--marble, none) center / cover;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 18px;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.frame { box-sizing: border-box; height: 100%; padding-inline: clamp(16px, 2.6vw, 34px); padding-block: clamp(12px, 2.4vw, 28px); display: flex; }
+.stage {
+  flex: 1; min-width: 0; display: flex; flex-direction: column;
+  background: var(--paper); border: 5px solid var(--ink); border-radius: 30px;
+  box-shadow: 0 6px 0 var(--ink); overflow: hidden; position: relative;
+}
+/* top bar */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; padding: 14px 22px 10px; }
+.brand { font-family: var(--display); font-size: clamp(26px, 3.4vw, 40px); line-height: 1; letter-spacing: .5px; display: flex; gap: 1px; flex-wrap: wrap; }
+.brand span { -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; }
+.teams { display: flex; gap: 12px; margin-left: auto; flex-wrap: wrap; }
+.team {
+  display: flex; align-items: center; gap: 10px; padding: 6px 10px 6px 14px;
+  border: 3px solid var(--ink); border-radius: 18px; background: var(--paper);
+  transition: transform .2s, box-shadow .2s;
+}
+.team.on { transform: translateY(-3px); box-shadow: 0 5px 0 var(--ink); }
+.team[data-t="0"].on { background: var(--sky-l); }
+.team[data-t="1"].on { background: var(--pink-l); }
+.team input { width: 5.6em; font: 800 20px var(--body); border: 0; background: transparent; color: var(--ink); padding: 0; }
+.team input:focus-visible { outline: 3px dashed var(--ink); border-radius: 6px; }
+.score { font-family: var(--display); font-size: 38px; min-width: 1.6em; text-align: center; font-variant-numeric: tabular-nums; }
+.score.pop { animation: pop .5s; }
+.mini { width: 34px; height: 34px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--paper); display: grid; place-items: center; cursor: pointer; padding: 0; color: var(--ink); }
+.mini svg { width: 14px; height: 14px; }
+.tools { display: flex; gap: 8px; }
+.tool { width: 46px; height: 46px; border-radius: 50%; border: 3px solid var(--ink); background: var(--sun); display: grid; place-items: center; cursor: pointer; padding: 0; color: var(--ink); }
+.tool svg { width: 20px; height: 20px; }
+button:focus-visible { outline: 4px dashed var(--ink); outline-offset: 3px; }
+.turn { font: 800 17px var(--body); padding: 2px 22px 0; color: var(--muted); }
+.turn b { color: var(--ink); }
+/* views */
+.view { flex: 1; min-height: 0; overflow: auto; padding: 8px 22px 22px; display: flex; flex-direction: column; }
+.btn {
+  font: 800 clamp(20px, 2.3vw, 28px) var(--body); color: var(--ink);
+  border: 3.5px solid var(--ink); border-radius: 20px; padding: .45em 1.1em .35em;
+  background: var(--sun); box-shadow: 0 5px 0 var(--ink); cursor: pointer;
+  transition: transform .12s, box-shadow .12s; line-height: 1.15;
+}
+.btn small { display: block; font: 700 .62em var(--zh); }
+.btn:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); }
+.zh { font-family: var(--zh); }
+h2 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 4vw, 48px); margin: 4px 0 2px; text-wrap: balance; }
+h2 .zh { font: 900 .5em var(--zh); color: var(--muted); margin-left: .4em; }
+/* menu */
+.menu { flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px; align-content: center; max-width: 980px; width: 100%; margin: 0 auto; }
+.gcard {
+  border: 4px solid var(--ink); border-radius: 26px; padding: 24px; cursor: pointer; text-align: left;
+  box-shadow: 0 7px 0 var(--ink); display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; align-items: center;
+  font-family: var(--body); color: var(--ink); transition: transform .12s, box-shadow .12s;
+}
+.gcard:active { transform: translateY(5px); box-shadow: 0 2px 0 var(--ink); }
+.gcard .ic { grid-row: span 2; width: 96px; height: 96px; border-radius: 50%; border: 3.5px solid var(--ink); background: var(--paper); display: grid; place-items: center; }
+.gcard .ic svg { width: 52px; height: 52px; }
+.gcard b { font-family: var(--display); font-weight: 400; font-size: 34px; line-height: 1; }
+.gcard span { font: 700 19px var(--zh); color: var(--ink); }
+.gcard p { grid-column: 1 / -1; margin: 10px 0 0; font: 600 17px var(--zh); color: var(--muted); }
+.hint { text-align: center; font: 600 15px var(--zh); color: var(--muted); margin-top: 18px; }
+/* big or small */
+.q { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 22px; align-items: center; flex: 1; }
+@media (max-width: 760px) { .q { grid-template-columns: 1fr; } }
+.scene { width: 100%; max-width: 100%; aspect-ratio: 640 / 300; border: 3.5px solid var(--ink); border-radius: 22px; background: #f4f1ff; }
+.prompt { font: 800 clamp(24px, 2.8vw, 34px) var(--body); line-height: 1.2; margin: 0; text-wrap: balance; }
+.prompt .zh { display: block; font: 700 .62em var(--zh); color: var(--muted); margin-top: 6px; }
+.opts { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 22px; }
+.opts .btn { min-width: 6.5em; }
+.btn.wrong { background: #eee; color: #888; text-decoration: line-through; box-shadow: 0 2px 0 #888; border-color: #888; animation: shake .4s; }
+.btn.right { background: var(--mint); }
+.feedback { min-height: 3.2em; margin-top: 16px; font: 800 24px var(--body); }
+.feedback .zh { display: block; font: 700 17px var(--zh); color: var(--muted); }
+.feedback.bad { color: var(--bad); }
+.progress { display: flex; gap: 8px; align-items: center; font: 800 16px var(--body); color: var(--muted); }
+.dot { width: 14px; height: 14px; border-radius: 50%; border: 2.5px solid var(--ink); background: var(--paper); }
+.dot.done { background: var(--mint); }
+.dot.now { background: var(--sun); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.shadowgrow { transform-box: fill-box; transform-origin: center; animation: grow .9s cubic-bezier(.2,1.4,.4,1) both; }
+.barGrow { transform-box: fill-box; transform-origin: left center; animation: growX .9s cubic-bezier(.2,1.2,.4,1) both; }
+/* mystery box */
+.boxes { flex: 1; min-height: 260px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: repeat(3, minmax(64px, 1fr)); gap: clamp(10px, 1.8vw, 20px); max-width: 860px; width: 100%; margin: 6px auto 4px; }
+.box {
+  max-width: 100%; border: 4px solid var(--ink); border-radius: 22px; cursor: pointer;
+  font-family: var(--display); font-size: clamp(36px, 5vw, 64px); color: var(--ink);
+  box-shadow: 0 6px 0 var(--ink); display: grid; place-items: center; position: relative; transition: transform .12s, box-shadow .12s;
+}
+.box:active { transform: translateY(5px); box-shadow: 0 1px 0 var(--ink); }
+.box.open { background: var(--paper) !important; box-shadow: none; transform: none; cursor: default; border-style: dashed; color: var(--muted); }
+.box.open .pz { font-size: .6em; display: flex; align-items: center; gap: .25em; }
+.box.open .pz svg { width: .8em; height: .8em; }
+.box .who { position: absolute; bottom: 6px; right: 12px; font: 800 14px var(--body); color: var(--muted); }
+/* modal */
+.modal { position: absolute; inset: 0; background: rgba(31,31,31,.55); display: grid; place-items: center; padding: 20px; z-index: 5; }
+.card {
+  background: var(--paper); border: 5px solid var(--ink); border-radius: 28px; box-shadow: 0 8px 0 var(--ink);
+  width: min(820px, 100%); max-height: 100%; overflow: auto; padding: 22px 26px 26px; box-sizing: border-box;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 26px; align-items: center; animation: pop .35s;
+}
+.card .big { width: clamp(110px, 16vw, 170px); height: clamp(110px, 16vw, 170px); border-radius: 50%; border: 4px solid var(--ink); display: grid; place-items: center; grid-row: span 3; }
+.card .big svg { width: 56%; height: 56%; }
+.card h3 { font-family: var(--display); font-weight: 400; font-size: 26px; margin: 0; color: var(--muted); }
+.card .ans { font: 800 clamp(28px, 3.4vw, 40px) var(--body); color: #0d8a64; }
+.card .ans .zh { font: 700 .55em var(--zh); color: var(--muted); margin-left: .4em; }
+.card .acts { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 14px; justify-content: flex-end; margin-top: 8px; }
+.prize { display: flex; align-items: center; gap: 14px; font-family: var(--display); font-size: 54px; animation: pop .5s; }
+.prize .coin { width: 84px; height: 84px; border-radius: 50%; border: 4px solid var(--ink); display: grid; place-items: center; }
+.prize .coin svg { width: 46px; height: 46px; }
+.prize small { font: 800 20px var(--zh); color: var(--muted); }
+.btn.ok { background: var(--mint); }
+.btn.no { background: var(--pink); }
+.btn.plain { background: var(--paper); }
+/* end */
+.end { flex: 1; display: grid; place-items: center; text-align: center; }
+.end .trophy { width: 130px; height: 130px; margin: 0 auto 10px; border-radius: 50%; border: 4px solid var(--ink); background: var(--sun); display: grid; place-items: center; animation: pop .6s; }
+.end .trophy svg { width: 64px; height: 64px; }
+.end h2 { font-size: clamp(36px, 5vw, 60px); }
+canvas#fx { position: absolute; inset: 0; pointer-events: none; z-index: 9; width: 100%; height: 100%; }
+.banner { position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 8; pointer-events: none; font-family: var(--display); font-size: clamp(34px, 5vw, 62px); padding: 10px 34px; border: 5px solid var(--ink); border-radius: 26px; box-shadow: 0 7px 0 var(--ink); white-space: nowrap; animation: bannerIn 1.4s both; }
+@keyframes pop { 0% { transform: scale(.6); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@keyframes grow { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes growX { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes shake { 0%,100% { translate: 0; } 25% { translate: -8px; } 75% { translate: 8px; } }
+@keyframes bannerIn { 0% { opacity: 0; transform: translate(-50%, -50%) scale(.5); } 15%, 80% { opacity: 1; transform: translate(-50%, -50%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition: none !important; } }
+@media (max-width: 600px) { .bar { padding: 12px 14px 6px; } .view { padding: 6px 14px 16px; } .team input { width: 4.2em; font-size: 17px; } .score { font-size: 30px; } }
+</style>
+
+<style>html,body{margin:0}</style>
+</head>
+<body>
+<div class="frame">
+  <div class="stage" id="stage">
+    <div class="bar">
+      <div class="brand" id="brand" aria-label="Light and Shadow"></div>
+      <div class="teams">
+        <div class="team on" data-t="0">
+          <input id="team0" value="Team 1" aria-label="第一隊名稱" maxlength="10">
+          <button class="mini" data-adj="0,-1" aria-label="第一隊減一分"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512"><path d="M416 208H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h384c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"></path></svg></button>
+          <span class="score" id="score0">0</span>
+          <button class="mini" data-adj="0,1" aria-label="第一隊加一分"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512"><path d="M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"></path></svg></button>
+        </div>
+        <div class="team" data-t="1">
+          <input id="team1" value="Team 2" aria-label="第二隊名稱" maxlength="10">
+          <button class="mini" data-adj="1,-1" aria-label="第二隊減一分"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512"><path d="M416 208H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h384c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"></path></svg></button>
+          <span class="score" id="score1">0</span>
+          <button class="mini" data-adj="1,1" aria-label="第二隊加一分"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512"><path d="M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z"></path></svg></button>
+        </div>
+      </div>
+      <div class="tools">
+        <button class="tool" id="home" aria-label="回選單"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 576 512"><path d="M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z"></path></svg></button>
+        <button class="tool" id="snd" aria-label="音效開關"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 576 512"><path d="M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97zm233.32-51.08c-11.17-7.33-26.18-4.24-33.51 6.95-7.34 11.17-4.22 26.18 6.95 33.51 66.27 43.49 105.82 116.6 105.82 195.58 0 78.98-39.55 152.09-105.82 195.58-11.17 7.32-14.29 22.34-6.95 33.5 7.04 10.71 21.93 14.56 33.51 6.95C528.27 439.58 576 351.33 576 256S528.27 72.43 448.35 19.97zM480 256c0-63.53-32.06-121.94-85.77-156.24-11.19-7.14-26.03-3.82-33.12 7.46s-3.78 26.21 7.41 33.36C408.27 165.97 432 209.11 432 256s-23.73 90.03-63.48 115.42c-11.19 7.14-14.5 22.07-7.41 33.36 6.51 10.36 21.12 15.14 33.12 7.46C447.94 377.94 480 319.54 480 256zm-141.77-76.87c-11.58-6.33-26.19-2.16-32.61 9.45-6.39 11.61-2.16 26.2 9.45 32.61C327.98 228.28 336 241.63 336 256c0 14.38-8.02 27.72-20.92 34.81-11.61 6.41-15.84 21-9.45 32.61 6.43 11.66 21.05 15.8 32.61 9.45 28.23-15.55 45.77-45 45.77-76.88s-17.54-61.32-45.78-76.86z"></path></svg></button>
+        <button class="tool" id="fs" aria-label="全螢幕"><svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 448 512"><path d="M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z"></path></svg></button>
+      </div>
+    </div>
+    <div class="turn" id="turn"></div>
+    <div class="view" id="view"></div>
+    <canvas id="fx"></canvas>
+  </div>
+</div>
+
+<script>
+const ICONS = {"FaLightbulb":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 352 512\"><path d=\"M96.06 454.35c.01 6.29 1.87 12.45 5.36 17.69l17.09 25.69a31.99 31.99 0 0 0 26.64 14.28h61.71a31.99 31.99 0 0 0 26.64-14.28l17.09-25.69a31.989 31.989 0 0 0 5.36-17.69l.04-38.35H96.01l.05 38.35zM0 176c0 44.37 16.45 84.85 43.56 115.78 16.52 18.85 42.36 58.23 52.21 91.45.04.26.07.52.11.78h160.24c.04-.26.07-.51.11-.78 9.85-33.22 35.69-72.6 52.21-91.45C335.55 260.85 352 220.37 352 176 352 78.61 272.91-.3 175.45 0 73.44.31 0 82.97 0 176zm176-80c-44.11 0-80 35.89-80 80 0 8.84-7.16 16-16 16s-16-7.16-16-16c0-61.76 50.24-112 112-112 8.84 0 16 7.16 16 16s-7.16 16-16 16z\"></path></svg>","GiRabbit":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M242.29 27.29c-4.165 0-4.79.695-5.593 3.058-.803 2.362-.714 8.368 4.065 17.097 8.758 16 32.356 39.726 78.675 64.582 7.15-7.48 15.604-12.92 24.57-16.713-25.48-14.076-44.05-29.58-58.892-42.158-18.93-16.04-31.326-25.867-42.826-25.867zm-66.274 54.66c-3.815.007-4.68.864-5.07 1.355-.39.49-1 1.882-.485 5.125 1.03 6.484 7.16 18.015 18 28.943 21.683 21.855 60.793 42.287 109.542 34.72 2.13-.33 4.725-.616 7.846 1.194 3.12 1.81 4.73 5.96 4.77 8.36.076 4.807-1.495 6.874-2.722 9.546-2.452 5.345-4.35 11.657-4.375 11.47v.003c1.98 15 14.374 26.28 32.396 34.63 18.023 8.353 40.75 13.004 58.875 14.737 12.552 1.2 27.23.995 40.9-1.388-1.555-2.715-2.676-5.576-3.31-8.516-1.763-8.156.105-16.39 4.093-23.327 6.392-11.12 18.112-19.685 32.36-22.83-4.64-7.837-10.434-16.323-17.024-24.592-19.92-24.992-47.433-46.955-67.978-47.384-20.465-.427-44.107 6.055-57.367 24.242-2.24 3.07-5.56 4.144-8.018 4.46-2.457.318-4.623.1-6.92-.284-4.592-.766-9.7-2.373-15.613-4.527-11.825-4.308-26.625-10.89-42.127-17.774-15.502-6.883-31.668-14.06-45.744-19.44-14.076-5.38-26.546-8.735-32.027-8.724zm224.422 61.915a16 16 0 0 1 15.533 15.994 16 16 0 0 1-32 0 16 16 0 0 1 16.467-15.995zM39.79 190.777c-.804.006-2.017.25-4.017 1.24a9 9 0 0 0-.002 0c-4.252 2.103-7.437 7.213-8.883 16.325-1.447 9.11-.696 21.27 1.888 33.53 2.585 12.263 6.954 24.683 12.116 34.634 3.023 5.827 6.386 10.568 9.53 14.133 4.966-17.297 13.943-33.833 27.697-48.44-3.153-2.038-5.968-4.422-8.365-7.046-7.05-7.717-11.604-16.873-15.648-24.877-4.045-8.003-7.82-14.854-10.64-17.605-1.408-1.376-2.22-1.714-2.99-1.84-.192-.032-.414-.057-.683-.055zm437.63 2.06c-11.655 1.13-21.29 7.89-25.342 14.936-2.183 3.797-2.794 7.368-2.105 10.555.51 2.36 1.71 4.797 4.408 7.29 11.853-4.564 21.157-11.42 26.145-20.938-.286.42.182-1.32-.504-4.184-.494-2.07-1.397-4.71-2.6-7.66zm-198.496 7.724c-2.463-.004-4.896.007-7.3.034-71.537.806-120.588 13.47-152.624 32.187-36.613 21.393-51.716 50.092-54.844 81.44-3.128 31.346 6.6 65.513 22 94.56 14.84 27.988 35.094 51.027 51.97 62.22H312.19c-.134-1.91-.67-3.555-1.502-5.188-1.637-3.21-4.918-6.56-10.032-9.687-10.228-6.256-27.12-11.045-44.812-14.438-17.693-3.392-36.175-5.596-50.625-8-7.227-1.2-13.393-2.377-18.532-4.125-2.57-.873-4.92-1.813-7.313-3.593-2.392-1.782-5.313-5.385-5.313-9.97 0-2.61 1.27-4.982 2.375-6.22 1.107-1.236 2.03-1.74 2.75-2.124 1.442-.765 2.283-.952 3.125-1.156 1.686-.408 3.238-.605 5.125-.813 3.776-.414 8.714-.75 14.72-1.187 12.01-.875 28.107-2.106 44.968-4.688 33.722-5.162 69.382-16.778 81.156-36.437 6.403-10.69 5.69-20.67-.56-31.156-6.253-10.487-18.818-20.728-35.72-27.376-33.803-13.297-84.07-12.464-132.72 22.47l-10.5-14.627c33.327-23.93 67.99-33.66 99-33.78 18.608-.072 35.892 3.33 50.782 9.187 19.854 7.81 35.666 19.93 44.594 34.906 8.93 14.976 10.196 33.537.563 49.625-17.64 29.45-58.476 39.55-93.876 44.97-5.897.902-11.315 1.47-16.844 2.092 8.423 1.25 17.318 2.606 26.22 4.313 18.544 3.556 36.893 8.25 50.842 16.78 6.975 4.267 12.99 9.656 16.657 16.845 2.058 4.04 3.204 8.593 3.37 13.375h130.66c2.072-1.76 3.435-3.254 3.844-4.063.538-1.064.46-1.178.25-2.062-.423-1.77-3.667-6.165-7.78-11.125-2.527-3.044-11.017-7.917-21.658-10.594-10.64-2.677-23.344-3.65-34.25-2.22l-2.344.283-2.218-.876c-6.667-2.715-11.864-9.652-12.25-16.313-.386-6.66 1.89-12.352 4.72-18.467 5.655-12.23 14.802-26.366 22.186-42.72 7.384-16.352 12.907-34.52 11.72-53.843-1.153-18.73-8.467-38.93-27.84-60.88-.622-.052-1.248-.1-1.86-.16h-.002c-19.505-1.864-43.524-6.62-64.08-16.146-15.233-7.06-29.065-17.167-36.415-31.074-4.692-.1-9.332-.172-13.85-.18z\"></path></svg>","FaChild":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 384 512\"><path d=\"M120 72c0-39.765 32.235-72 72-72s72 32.235 72 72c0 39.764-32.235 72-72 72s-72-32.236-72-72zm254.627 1.373c-12.496-12.497-32.758-12.497-45.254 0L242.745 160H141.254L54.627 73.373c-12.496-12.497-32.758-12.497-45.254 0-12.497 12.497-12.497 32.758 0 45.255L104 213.254V480c0 17.673 14.327 32 32 32h16c17.673 0 32-14.327 32-32V368h16v112c0 17.673 14.327 32 32 32h16c17.673 0 32-14.327 32-32V213.254l94.627-94.627c12.497-12.497 12.497-32.757 0-45.254z\"></path></svg>","FaSun":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M256 160c-52.9 0-96 43.1-96 96s43.1 96 96 96 96-43.1 96-96-43.1-96-96-96zm246.4 80.5l-94.7-47.3 33.5-100.4c4.5-13.6-8.4-26.5-21.9-21.9l-100.4 33.5-47.4-94.8c-6.4-12.8-24.6-12.8-31 0l-47.3 94.7L92.7 70.8c-13.6-4.5-26.5 8.4-21.9 21.9l33.5 100.4-94.7 47.4c-12.8 6.4-12.8 24.6 0 31l94.7 47.3-33.5 100.5c-4.5 13.6 8.4 26.5 21.9 21.9l100.4-33.5 47.3 94.7c6.4 12.8 24.6 12.8 31 0l47.3-94.7 100.4 33.5c13.6 4.5 26.5-8.4 21.9-21.9l-33.5-100.4 94.7-47.3c13-6.5 13-24.7.2-31.1zm-155.9 106c-49.9 49.9-131.1 49.9-181 0-49.9-49.9-49.9-131.1 0-181 49.9-49.9 131.1-49.9 181 0 49.9 49.9 49.9 131.1 0 181z\"></path></svg>","FaMoon":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M283.211 512c78.962 0 151.079-35.925 198.857-94.792 7.068-8.708-.639-21.43-11.562-19.35-124.203 23.654-238.262-71.576-238.262-196.954 0-72.222 38.662-138.635 101.498-174.394 9.686-5.512 7.25-20.197-3.756-22.23A258.156 258.156 0 0 0 283.211 0c-141.309 0-256 114.511-256 256 0 141.309 114.511 256 256 256z\"></path></svg>","GiFlashlight":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M340.162 18.186c-9.86.138-17.596 2.957-22.69 8.052-9.06 9.058-10.928 26.47-3.318 49.3 7.61 22.832 24.437 49.604 48.57 73.737 24.134 24.134 50.906 40.96 73.737 48.57 22.832 7.61 40.244 5.744 49.302-3.314 6.863-6.862 9.587-18.53 7.2-33.71-1.16 5.313-3.534 10.246-7.442 14.155-5.97 5.968-14.318 8.374-22.776 8.31-8.458-.063-17.446-2.342-26.898-6.234-18.906-7.784-39.76-22.21-59.22-41.673-19.463-19.462-33.89-40.317-41.675-59.223-3.89-9.452-6.17-18.438-6.233-26.896-.01-1.117.03-2.232.11-3.34a78.697 32.79 45 0 0 35.736 55.848 78.697 32.79 45 0 0 78.832 32.46 78.697 32.79 45 0 0-32.46-78.833 78.697 32.79 45 0 0-66.003-37.06c-1.638-.112-3.234-.17-4.77-.147zm-48.767 32.1c-6.988 6.83-13.964 14.17-18.243 20.107-5.328 7.392-11.51 14.412-15.722 21.066-4.212 6.653-6.17 12.26-5.323 17.483 11.187 68.933 82.017 139.763 150.95 150.95 5.223.847 10.83-1.11 17.484-5.323 6.655-4.212 13.675-10.394 21.067-15.722 5.936-4.28 13.276-11.255 20.108-18.243-9.795-.105-20.302-2.133-30.945-5.68-26.306-8.77-54.92-27.068-80.772-52.92-25.853-25.854-44.15-54.47-52.92-80.775-3.548-10.643-5.578-21.15-5.683-30.945zm-47.39 96.247L49.244 359.31c17.678 44.414 59.03 85.767 103.446 103.446l212.777-194.76c-53.32-20.988-100.475-68.143-121.463-121.463zm-16.806 97.6c.597.03 1.22.094 1.87.197 9.537 1.506 17.898 6.978 24.76 13.84 6.862 6.862 12.334 15.223 13.84 24.76.82 5.203-.81 8.604-2.547 12.187-1.736 3.583-4.078 7.227-6.89 11.088-5.626 7.723-13.153 16.222-21.196 24.266-8.043 8.044-16.545 15.573-24.267 21.198-3.862 2.813-7.505 5.155-11.088 6.89-3.583 1.736-6.985 3.37-12.188 2.547-9.536-1.505-17.897-6.977-24.76-13.84-6.862-6.862-12.334-15.222-13.84-24.76-.82-5.202.812-8.604 2.547-12.187 1.737-3.583 4.08-7.226 6.892-11.088 5.625-7.722 13.154-16.224 21.197-24.267s16.542-15.57 24.265-21.195c3.86-2.813 7.505-5.155 11.088-6.89 2.687-1.303 5.272-2.547 8.592-2.74.553-.034 1.126-.036 1.724-.005zm-.936 17.976c.275.043.563.103.86.173.084-.04-.152-.062-.86-.174zm.86.173c-.138.064-1.118.174-2.395.793-2.075 1.005-5.04 2.838-8.337 5.24-6.597 4.805-14.624 11.862-22.137 19.375-3.71 3.71-7.303 7.542-10.572 11.267l29.36 29.36c3.724-3.27 7.556-6.864 11.265-10.573 7.512-7.513 14.57-15.54 19.374-22.137 2.402-3.298 4.235-6.262 5.24-8.336.62-1.276.73-2.256.793-2.393-.927-3.9-4.15-9.512-8.615-13.98-4.467-4.465-10.08-7.687-13.98-8.614zm22.593 22.594c.07.296.13.584.174.86-.11-.71-.134-.945-.173-.86zm-77.192 28.375c-1.24 1.893-2.246 3.595-2.884 4.912-.616 1.272-.73 2.247-.792 2.39.925 3.9 4.147 9.515 8.615 13.983s10.082 7.69 13.982 8.615c.144-.063 1.12-.176 2.39-.793 1.318-.64 3.02-1.644 4.913-2.885l-26.223-26.223zm18.92 29.9c-.09.04.143.06.856.172-.273-.043-.56-.102-.855-.172zm-22.597-22.597c-.07-.295-.13-.582-.172-.856.112.712.132.945.172.855zM35.895 373.893L19.742 391.54c11.654 49.472 51.246 89.064 100.72 100.718l17.645-16.153C94.302 456.21 55.79 417.698 35.895 373.893z\"></path></svg>","GiTheaterCurtains":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M18 18v94.275c28.382-12.57 52.994-35.202 71.39-59.734-4.662-3.466-8.973-7.064-12.865-10.79C68.903 34.452 62.723 26.51 58.973 18zm61.754 0c2.378 3.508 5.41 7.103 9.22 10.75 10.73 10.274 26.505 20.414 44.88 29.117C170.602 75.274 217.8 87 256 87s85.398-11.726 122.146-29.133c18.375-8.703 34.15-18.843 44.88-29.117 3.81-3.647 6.842-7.242 9.22-10.75zm373.273 0c-3.75 8.51-9.93 16.452-17.552 23.75-3.892 3.726-8.203 7.324-12.864 10.79 18.396 24.533 43.008 47.166 71.39 59.735V18zm-82.554 16.734C354.78 52.937 308.428 65.326 256 65.33c-52.242-.023-98.44-12.343-114.236-30.463C168.982 45.655 211.206 51.987 256 52c44.953-.022 87.294-6.408 114.473-17.266zM104.785 62.78C83.37 91.92 53.765 118.415 18 131.788v174.035c2.116.805 4.112 1.178 6 1.178 8.312-.646 12.295-5.132 18.324-9.984 29.568-24.024 49.255-66.27 65.053-119.094 9.187-30.72 17.136-64.91 25.34-100.78-2.216-.986-4.41-1.986-6.57-3.01-7.512-3.557-14.67-7.346-21.362-11.35zm302.43 0c-6.693 4.006-13.85 7.795-21.36 11.353-2.162 1.023-4.356 2.023-6.572 3.008 8.204 35.872 16.153 70.062 25.34 100.782 15.798 52.825 35.485 95.07 65.053 119.094 5.414 4.648 11.22 9.89 18.324 9.984 1.888 0 3.884-.373 6-1.178V131.787c-35.764-13.373-65.37-39.87-86.785-69.006zM46.13 317.34C39.233 322.193 31.793 325 24 325c-2.025 0-4.026-.197-6-.564v123.2c6.273 2.01 14.098 3.364 22 3.364 12.41 0 24.637-3.336 30.94-7.316-.04-43.556-.973-88.042-24.81-126.344zm419.74 0c-23.837 38.302-24.77 82.788-24.81 126.344 6.303 3.98 18.53 7.316 30.94 7.316 7.902 0 15.727-1.353 22-3.363v-123.2c-1.974.366-3.975.563-6 .563-7.792 0-15.232-2.807-22.13-7.66zM88.39 409c.6 13.277.61 26.37.61 39v3.73l-2.637 2.633C75.18 465.545 57.5 469 40 469c-7.475 0-14.98-.636-22-2.232V487h476v-20.232c-7.02 1.596-14.525 2.232-22 2.232-17.5 0-35.18-3.455-46.363-14.637L423 451.73V448c0-12.63.01-25.723.61-39z\"></path></svg>","GiPuppet":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M257.406 17.188c-25.61 0-46.22 20.72-46.22 46.593 0 25.875 20.61 46.595 46.22 46.595s46.25-20.72 46.25-46.594c0-25.872-20.64-46.593-46.25-46.593zm122.78 37.937l-78.31 58.625c2.665 5.776 4.776 12.026 6.25 18.656l69-51.656 3.062-25.625zm-255.342 1.28l8.875 27.407 64.186 39.376c2.513-5.943 5.514-11.462 8.938-16.47l-82-50.312zM398.47 59.47l-3.095 26.28 41.438 52.625c4.674-4.206 10.216-7.468 16.312-9.47L398.47 59.47zm-291.94 1l-51.718 80c6.345 1.322 12.192 3.976 17.282 7.655l41.844-64.72-7.407-22.936zm111.94 55.5c-7.12 10.803-12.285 24.91-13.907 40.686-2 19.438 1.785 37.464 9.062 50.563 7.277 13.098 17.574 20.998 29.28 22.218 11.708 1.22 23.405-4.372 33.19-15.688 9.783-11.316 17.156-28.218 19.155-47.656 1.74-16.923-.89-32.787-6.406-45.25-9.327 5.225-20.04 8.22-31.438 8.22-14.59 0-28.083-4.874-38.937-13.095zm248.75 29.374c-14.947 0-26.876 11.93-26.876 26.875s11.93 26.874 26.875 26.874 26.842-11.93 26.842-26.875c0-14.947-11.897-26.876-26.843-26.876zM45.56 158.22c-14.946 0-26.874 11.896-26.874 26.843 0 14.946 11.928 26.875 26.875 26.875 14.946 0 26.843-11.93 26.843-26.875 0-14.947-11.897-26.844-26.844-26.844zM212.5 230.03c-10.02 7.32-16.327 17.48-16.53 27.532-.185 9.06 3.95 16.745 11.655 22.625 7.705 5.88 19.014 9.51 32.03 8.75 26.036-1.52 46.228-20.007 46.595-38.125.148-7.302-2.523-13.71-7.594-19-10.786 8.85-23.713 13.758-37.28 12.344-11.08-1.154-20.883-6.343-28.876-14.125zm69.906 62.5c-9.156 6.97-20.466 11.91-32.72 14.033l47.783 81.125 15.874-13.625-30.938-81.532zm-81.687 5.564l-9.595 91.78 18.53 13.345 24.532-95.5c-12.492-.33-24.01-3.736-33.468-9.626zm125.124 89.844l-15.72 13.5 65.22 51.03c2.495-9.733 8.156-18.518 16.156-24.78l-65.656-39.75zm-142.47 19.375l-55.905 29.75c4.933 6.162 8.355 13.66 9.53 22 .09.648.156 1.29.22 1.937l64.56-40.406-18.405-13.28zm235.907 29.437c-.773.01-1.562.048-2.342.125-1.784.176-3.558.514-5.344 1.063-14.29 4.384-22.197 19.273-17.813 33.562 4.385 14.29 19.275 22.197 33.564 17.813 14.29-4.385 22.196-19.274 17.812-33.563-3.596-11.72-14.268-19.132-25.875-19zm-327 1.78c-1.355-.013-2.736.087-4.124.283-14.8 2.084-24.928 15.543-22.844 30.343 2.085 14.8 15.544 24.928 30.344 22.844 14.8-2.084 24.928-15.544 22.844-30.344-1.824-12.95-12.355-22.316-24.875-23.062-.447-.027-.892-.058-1.344-.063z\"></path></svg>","FaHandPaper":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 448 512\"><path d=\"M408.781 128.007C386.356 127.578 368 146.36 368 168.79V256h-8V79.79c0-22.43-18.356-41.212-40.781-40.783C297.488 39.423 280 57.169 280 79v177h-8V40.79C272 18.36 253.644-.422 231.219.007 209.488.423 192 18.169 192 40v216h-8V80.79c0-22.43-18.356-41.212-40.781-40.783C121.488 40.423 104 58.169 104 80v235.992l-31.648-43.519c-12.993-17.866-38.009-21.817-55.877-8.823-17.865 12.994-21.815 38.01-8.822 55.877l125.601 172.705A48 48 0 0 0 172.073 512h197.59c22.274 0 41.622-15.324 46.724-37.006l26.508-112.66a192.011 192.011 0 0 0 5.104-43.975V168c.001-21.831-17.487-39.577-39.218-39.993z\"></path></svg>","FaGhost":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 384 512\"><path d=\"M186.1.09C81.01 3.24 0 94.92 0 200.05v263.92c0 14.26 17.23 21.39 27.31 11.31l24.92-18.53c6.66-4.95 16-3.99 21.51 2.21l42.95 48.35c6.25 6.25 16.38 6.25 22.63 0l40.72-45.85c6.37-7.17 17.56-7.17 23.92 0l40.72 45.85c6.25 6.25 16.38 6.25 22.63 0l42.95-48.35c5.51-6.2 14.85-7.17 21.51-2.21l24.92 18.53c10.08 10.08 27.31 2.94 27.31-11.31V192C384 84 294.83-3.17 186.1.09zM128 224c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32zm128 0c-17.67 0-32-14.33-32-32s14.33-32 32-32 32 14.33 32 32-14.33 32-32 32z\"></path></svg>","FaStar":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 576 512\"><path d=\"M259.3 17.8L194 150.2 47.9 171.5c-26.2 3.8-36.7 36.1-17.7 54.6l105.7 103-25 145.5c-4.5 26.3 23.2 46 46.4 33.7L288 439.6l130.7 68.7c23.2 12.2 50.9-7.4 46.4-33.7l-25-145.5 105.7-103c19-18.5 8.5-50.8-17.7-54.6L382 150.2 316.7 17.8c-11.7-23.6-45.6-23.9-57.4 0z\"></path></svg>","FaGift":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M32 448c0 17.7 14.3 32 32 32h160V320H32v128zm256 32h160c17.7 0 32-14.3 32-32V320H288v160zm192-320h-42.1c6.2-12.1 10.1-25.5 10.1-40 0-48.5-39.5-88-88-88-41.6 0-68.5 21.3-103 68.3-34.5-47-61.4-68.3-103-68.3-48.5 0-88 39.5-88 88 0 14.5 3.8 27.9 10.1 40H32c-17.7 0-32 14.3-32 32v80c0 8.8 7.2 16 16 16h480c8.8 0 16-7.2 16-16v-80c0-17.7-14.3-32-32-32zm-326.1 0c-22.1 0-40-17.9-40-40s17.9-40 40-40c19.9 0 34.6 3.3 86.1 80h-86.1zm206.1 0h-86.1c51.4-76.5 65.7-80 86.1-80 22.1 0 40 17.9 40 40s-17.9 40-40 40z\"></path></svg>","FaCheck":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z\"></path></svg>","FaTimes":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 352 512\"><path d=\"M242.72 256l100.07-100.07c12.28-12.28 12.28-32.19 0-44.48l-22.24-22.24c-12.28-12.28-32.19-12.28-44.48 0L176 189.28 75.93 89.21c-12.28-12.28-32.19-12.28-44.48 0L9.21 111.45c-12.28 12.28-12.28 32.19 0 44.48L109.28 256 9.21 356.07c-12.28 12.28-12.28 32.19 0 44.48l22.24 22.24c12.28 12.28 32.2 12.28 44.48 0L176 322.72l100.07 100.07c12.28 12.28 32.2 12.28 44.48 0l22.24-22.24c12.28-12.28 12.28-32.19 0-44.48L242.72 256z\"></path></svg>","FaVolumeUp":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 576 512\"><path d=\"M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97zm233.32-51.08c-11.17-7.33-26.18-4.24-33.51 6.95-7.34 11.17-4.22 26.18 6.95 33.51 66.27 43.49 105.82 116.6 105.82 195.58 0 78.98-39.55 152.09-105.82 195.58-11.17 7.32-14.29 22.34-6.95 33.5 7.04 10.71 21.93 14.56 33.51 6.95C528.27 439.58 576 351.33 576 256S528.27 72.43 448.35 19.97zM480 256c0-63.53-32.06-121.94-85.77-156.24-11.19-7.14-26.03-3.82-33.12 7.46s-3.78 26.21 7.41 33.36C408.27 165.97 432 209.11 432 256s-23.73 90.03-63.48 115.42c-11.19 7.14-14.5 22.07-7.41 33.36 6.51 10.36 21.12 15.14 33.12 7.46C447.94 377.94 480 319.54 480 256zm-141.77-76.87c-11.58-6.33-26.19-2.16-32.61 9.45-6.39 11.61-2.16 26.2 9.45 32.61C327.98 228.28 336 241.63 336 256c0 14.38-8.02 27.72-20.92 34.81-11.61 6.41-15.84 21-9.45 32.61 6.43 11.66 21.05 15.8 32.61 9.45 28.23-15.55 45.77-45 45.77-76.88s-17.54-61.32-45.78-76.86z\"></path></svg>","FaVolumeMute":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M215.03 71.05L126.06 160H24c-13.26 0-24 10.74-24 24v144c0 13.25 10.74 24 24 24h102.06l88.97 88.95c15.03 15.03 40.97 4.47 40.97-16.97V88.02c0-21.46-25.96-31.98-40.97-16.97zM461.64 256l45.64-45.64c6.3-6.3 6.3-16.52 0-22.82l-22.82-22.82c-6.3-6.3-16.52-6.3-22.82 0L416 210.36l-45.64-45.64c-6.3-6.3-16.52-6.3-22.82 0l-22.82 22.82c-6.3 6.3-6.3 16.52 0 22.82L370.36 256l-45.63 45.63c-6.3 6.3-6.3 16.52 0 22.82l22.82 22.82c6.3 6.3 16.52 6.3 22.82 0L416 301.64l45.64 45.64c6.3 6.3 16.52 6.3 22.82 0l22.82-22.82c6.3-6.3 6.3-16.52 0-22.82L461.64 256z\"></path></svg>","FaHome":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 576 512\"><path d=\"M280.37 148.26L96 300.11V464a16 16 0 0 0 16 16l112.06-.29a16 16 0 0 0 15.92-16V368a16 16 0 0 1 16-16h64a16 16 0 0 1 16 16v95.64a16 16 0 0 0 16 16.05L464 480a16 16 0 0 0 16-16V300L295.67 148.26a12.19 12.19 0 0 0-15.3 0zM571.6 251.47L488 182.56V44.05a12 12 0 0 0-12-12h-56a12 12 0 0 0-12 12v72.61L318.47 43a48 48 0 0 0-61 0L4.34 251.47a12 12 0 0 0-1.6 16.9l25.5 31A12 12 0 0 0 45.15 301l235.22-193.74a12.19 12.19 0 0 1 15.3 0L530.9 301a12 12 0 0 0 16.9-1.6l25.5-31a12 12 0 0 0-1.7-16.93z\"></path></svg>","FaRedo":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 512 512\"><path d=\"M500.33 0h-47.41a12 12 0 0 0-12 12.57l4 82.76A247.42 247.42 0 0 0 256 8C119.34 8 7.9 119.53 8 256.19 8.1 393.07 119.1 504 256 504a247.1 247.1 0 0 0 166.18-63.91 12 12 0 0 0 .48-17.43l-34-34a12 12 0 0 0-16.38-.55A176 176 0 1 1 402.1 157.8l-101.53-4.87a12 12 0 0 0-12.57 12v47.41a12 12 0 0 0 12 12h200.33a12 12 0 0 0 12-12V12a12 12 0 0 0-12-12z\"></path></svg>","FaExpand":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 448 512\"><path d=\"M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z\"></path></svg>","FaQuestion":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 384 512\"><path d=\"M202.021 0C122.202 0 70.503 32.703 29.914 91.026c-7.363 10.58-5.093 25.086 5.178 32.874l43.138 32.709c10.373 7.865 25.132 6.026 33.253-4.148 25.049-31.381 43.63-49.449 82.757-49.449 30.764 0 68.816 19.799 68.816 49.631 0 22.552-18.617 34.134-48.993 51.164-35.423 19.86-82.299 44.576-82.299 106.405V320c0 13.255 10.745 24 24 24h72.471c13.255 0 24-10.745 24-24v-5.773c0-42.86 125.268-44.645 125.268-160.627C377.504 66.256 286.902 0 202.021 0zM192 373.459c-38.196 0-69.271 31.075-69.271 69.271 0 38.195 31.075 69.27 69.271 69.27s69.271-31.075 69.271-69.271-31.075-69.27-69.271-69.27z\"></path></svg>","FaUsers":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 640 512\"><path d=\"M96 224c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm448 0c35.3 0 64-28.7 64-64s-28.7-64-64-64-64 28.7-64 64 28.7 64 64 64zm32 32h-64c-17.6 0-33.5 7.1-45.1 18.6 40.3 22.1 68.9 62 75.1 109.4h66c17.7 0 32-14.3 32-32v-32c0-35.3-28.7-64-64-64zm-256 0c61.9 0 112-50.1 112-112S381.9 32 320 32 208 82.1 208 144s50.1 112 112 112zm76.8 32h-8.3c-20.8 10-43.9 16-68.5 16s-47.6-6-68.5-16h-8.3C179.6 288 128 339.6 128 403.2V432c0 26.5 21.5 48 48 48h288c26.5 0 48-21.5 48-48v-28.8c0-63.6-51.6-115.2-115.2-115.2zm-223.7-13.4C161.5 263.1 145.6 256 128 256H64c-35.3 0-64 28.7-64 64v32c0 17.7 14.3 32 32 32h65.9c6.3-47.4 34.9-87.3 75.2-109.4z\"></path></svg>","FaTrophy":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 576 512\"><path d=\"M552 64H448V24c0-13.3-10.7-24-24-24H152c-13.3 0-24 10.7-24 24v40H24C10.7 64 0 74.7 0 88v56c0 35.7 22.5 72.4 61.9 100.7 31.5 22.7 69.8 37.1 110 41.7C203.3 338.5 240 360 240 360v72h-48c-35.3 0-64 20.7-64 56v12c0 6.6 5.4 12 12 12h296c6.6 0 12-5.4 12-12v-12c0-35.3-28.7-56-64-56h-48v-72s36.7-21.5 68.1-73.6c40.3-4.6 78.6-19 110-41.7 39.3-28.3 61.9-65 61.9-100.7V88c0-13.3-10.7-24-24-24zM99.3 192.8C74.9 175.2 64 155.6 64 144v-16h64.2c1 32.6 5.8 61.2 12.8 86.2-15.1-5.2-29.2-12.4-41.7-21.4zM512 144c0 16.1-17.7 36.1-35.3 48.8-12.5 9-26.7 16.2-41.8 21.4 7-25 11.8-53.6 12.8-86.2H512v16z\"></path></svg>","FaPlus":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 448 512\"><path d=\"M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z\"></path></svg>","FaMinus":"<svg stroke=\"currentColor\" fill=\"currentColor\" stroke-width=\"0\" viewBox=\"0 0 448 512\"><path d=\"M416 208H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h384c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z\"></path></svg>"};
+const I = n => ICONS[n];
+// ---------- marble background (composition notebook) ----------
+(function marble() {
+  try {
+    const W = 960, H = 600, c = document.createElement("canvas"); c.width = W; c.height = H;
+    const g = c.getContext("2d");
+    const acc = new Float32Array(W * H);
+    [[12, .5], [26, 1], [52, .6]].forEach(([sc, wt]) => {
+      const sw = Math.ceil(W / sc) + 2, sh = Math.ceil(H / sc) + 2;
+      const s = document.createElement("canvas"); s.width = sw; s.height = sh;
+      const sg = s.getContext("2d"), id = sg.createImageData(sw, sh);
+      for (let i = 0; i < sw * sh; i++) { const v = Math.random() * 255; id.data[i*4] = id.data[i*4+1] = id.data[i*4+2] = v; id.data[i*4+3] = 255; }
+      sg.putImageData(id, 0, 0);
+      g.imageSmoothingEnabled = true; g.imageSmoothingQuality = "high";
+      g.drawImage(s, -sc, -sc, sw * sc, sh * sc);
+      const d = g.getImageData(0, 0, W, H).data;
+      for (let i = 0; i < W * H; i++) acc[i] += d[i*4] / 255 * wt;
+    });
+    const sorted = Float32Array.from(acc).sort(), t = sorted[Math.floor(sorted.length / 2)];
+    const out = g.createImageData(W, H);
+    for (let i = 0; i < W * H; i++) { const v = acc[i] > t ? 30 : 255; out.data[i*4] = out.data[i*4+1] = out.data[i*4+2] = v; out.data[i*4+3] = 255; }
+    g.putImageData(out, 0, 0);
+    document.body.style.setProperty("--marble", `url(${c.toDataURL()})`);
+  } catch (e) {}
+})();
+
+// ---------- brand ----------
+const RAIN = ["#ff6fa5", "#ffb000", "#3cc9a0", "#4faef5", "#a07cff", "#ff8a4c"];
+document.getElementById("brand").innerHTML = Array.from("Light & Shadow").map((ch, i) => ch === " " ? "<span>&nbsp;</span>" : `<span style="color:${RAIN[i % 6]}">${ch}</span>`).join("");
+document.querySelectorAll("[data-adj]").forEach(b => b.innerHTML = I(b.textContent.trim().replace(/__I_|__/g, "")) || b.innerHTML);
+document.querySelectorAll(".tool").forEach(b => { const m = b.textContent.match(/__I_(\w+)__/); if (m) b.innerHTML = I(m[1]); });
+
+// ---------- state ----------
+let S = { scores: [0, 0], turn: 0, sound: true, view: "menu", bos: null, mb: null };
+const $ = id => document.getElementById(id);
+const view = $("view");
+function teamName(t) { return ($("team" + t).value || ("Team " + (t + 1))).trim(); }
+function renderScores(popT) {
+  [0, 1].forEach(t => {
+    const el = $("score" + t); el.textContent = S.scores[t];
+    if (t === popT) { el.classList.remove("pop"); void el.offsetWidth; el.classList.add("pop"); }
+  });
+  document.querySelectorAll(".team").forEach(el => el.classList.toggle("on", +el.dataset.t === S.turn));
+  $("turn").innerHTML = S.view === "menu" ? "點一個遊戲開始。兩隊輪流上台，答對自動加分。" : `Now playing 輪到：<b>${esc(teamName(S.turn))}</b>`;
+}
+function esc(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function addScore(t, n) { S.scores[t] += n; renderScores(t); }
+function nextTurn() { S.turn = 1 - S.turn; renderScores(); banner(teamName(S.turn) + "!", S.turn ? "var(--pink)" : "var(--sky)"); }
+document.querySelectorAll("[data-adj]").forEach(b => b.addEventListener("click", () => { const [t, n] = b.dataset.adj.split(",").map(Number); addScore(t, n); }));
+[0, 1].forEach(t => $("team" + t).addEventListener("input", () => renderScores()));
+document.querySelectorAll(".team").forEach(el => el.addEventListener("click", e => { if (e.target.closest("button,input")) return; S.turn = +el.dataset.t; renderScores(); }));
+
+// ---------- sound ----------
+let AC = null;
+function tone(seq) {
+  if (!S.sound) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    let t = AC.currentTime;
+    seq.forEach(([f, d, type]) => {
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = type || "triangle"; o.frequency.value = f;
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.25, t + .02); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g).connect(AC.destination); o.start(t); o.stop(t + d + .02); t += d * .85;
+    });
+  } catch (e) {}
+}
+const SFX = {
+  ok: () => tone([[660, .12], [880, .12], [1320, .25]]),
+  no: () => tone([[220, .18, "square"], [180, .25, "square"]]),
+  tap: () => tone([[520, .07]]),
+  win: () => tone([[523, .14], [659, .14], [784, .14], [1047, .4]]),
+  boo: () => tone([[300, .2, "sawtooth"], [240, .2, "sawtooth"], [180, .35, "sawtooth"]]),
+};
+$("snd").addEventListener("click", () => { S.sound = !S.sound; $("snd").innerHTML = I(S.sound ? "FaVolumeUp" : "FaVolumeMute"); if (S.sound) SFX.tap(); });
+$("fs").addEventListener("click", async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (e) {} });
+$("home").addEventListener("click", () => go("menu"));
+
+// ---------- effects ----------
+const fx = $("fx"), fxg = fx.getContext("2d"); let parts = [], raf = 0;
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function confetti() {
+  if (reduce) return;
+  const r = fx.getBoundingClientRect(); fx.width = r.width; fx.height = r.height;
+  for (let i = 0; i < 120; i++) parts.push({ x: r.width / 2, y: r.height * .45, vx: (Math.random() - .5) * 16, vy: -Math.random() * 14 - 4, s: 6 + Math.random() * 8, c: RAIN[i % 6], r: Math.random() * 6, life: 90 });
+  if (!raf) loop();
+}
+function loop() {
+  fxg.clearRect(0, 0, fx.width, fx.height);
+  parts.forEach(p => { p.x += p.vx; p.y += p.vy; p.vy += .45; p.r += .2; p.life--; fxg.save(); fxg.translate(p.x, p.y); fxg.rotate(p.r); fxg.fillStyle = p.c; fxg.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); fxg.restore(); });
+  parts = parts.filter(p => p.life > 0);
+  raf = parts.length ? requestAnimationFrame(loop) : (fxg.clearRect(0, 0, fx.width, fx.height), 0);
+}
+function banner(text, bg) {
+  const b = document.createElement("div"); b.className = "banner"; b.textContent = text; b.style.background = bg;
+  $("stage").appendChild(b); setTimeout(() => b.remove(), 1500);
+}
+
+// ---------- views ----------
+function go(v) {
+  S.view = v; renderScores();
+  if (v === "menu") return menu();
+  if (v === "bos") { if (!S.bos || S.bos.done) S.bos = newBos(); return bos(); }
+  if (v === "mb") { if (!S.mb) S.mb = newMb(); return mb(); }
+}
+function menu() {
+  view.innerHTML = `
+    <div class="menu">
+      <button class="gcard" style="background:var(--lilac-l)" data-go="bos">
+        <div class="ic" style="background:var(--sun)">${I("FaLightbulb")}</div>
+        <b>Big or small?</b><span>影子大挑戰</span>
+        <p>光靠近、離遠、在高處、在低處，影子會怎麼變？答對就看影子長出來。</p>
+      </button>
+      <button class="gcard" style="background:var(--mint-l)" data-go="mb">
+        <div class="ic" style="background:var(--pink)">${I("FaGift")}</div>
+        <b>Mystery Box</b><span>神秘箱</span>
+        <p>選一個箱子回答問題，答對才能打開。小心 Shadow monster 會扣分！</p>
+      </button>
+    </div>
+    <div class="hint">隊名可以直接點一下修改。點上方隊伍可以手動換人；旁邊的 + − 可以手動調分數。</div>`;
+  view.querySelectorAll("[data-go]").forEach(b => b.addEventListener("click", () => { SFX.tap(); go(b.dataset.go); }));
+}
+
+// ===== Game 1: Big or small =====
+const BOS = [
+  { k: "near", en: "When the light is near, the shadow is…", zh: "光靠近，影子會變得？", opts: [["big", "大"], ["small", "小"]], a: 0,
+    say: "When the light is near, the shadow is big.", sayZh: "光靠近，影子變大。" },
+  { k: "far", en: "When the light is far, the shadow is…", zh: "光離遠，影子會變得？", opts: [["big", "大"], ["small", "小"]], a: 1,
+    say: "When the light is far, the shadow is small.", sayZh: "光離遠，影子變小。" },
+  { k: "high", en: "When the light is high, the shadow is…", zh: "光在高處，影子會變得？", opts: [["long", "長"], ["short", "短"]], a: 1,
+    say: "When the light is high, the shadow is short.", sayZh: "光在高處，影子變短。" },
+  { k: "low", en: "When the light is low, the shadow is…", zh: "光在低處，影子會變得？", opts: [["long", "長"], ["short", "短"]], a: 0,
+    say: "When the light is low, the shadow is long.", sayZh: "光在低處，影子變長。" },
+  { k: "off", en: "Turn off the light. Can we see a shadow?", zh: "把燈關掉，還看得到影子嗎？", opts: [["Yes", "看得到"], ["No", "看不到"]], a: 1,
+    say: "No light, no shadow!", sayZh: "沒有光，就沒有影子！" },
+  { k: "screen", en: "We need light, a puppet, and a…", zh: "演皮影戲，要有光、偶，還要有？", opts: [["screen", "布幕"], ["cup", "杯子"]], a: 0,
+    say: "We need a screen to show the shadow.", sayZh: "要有布幕，影子才看得到。" },
+];
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function newBos() { return { order: [0, 1, 2, 3, 4, 5], i: 0, tries: 0, solved: false, done: false }; }
+function svgIcon(name, x, y, size, fill) { return I(name).replace("<svg", `<svg x="${x}" y="${y}" width="${size}" height="${size}" style="color:${fill}"`); }
+function lamp(x, y, on = true) {
+  return `<circle cx="${x}" cy="${y}" r="32" fill="${on ? "#ffd43b" : "#bdbdbd"}" stroke="#1f1f1f" stroke-width="4"/>` + svgIcon("FaLightbulb", x - 17, y - 17, 34, "#1f1f1f");
+}
+function scene(k, solved) {
+  const ink = "#1f1f1f";
+  let s = `<svg viewBox="0 0 640 300" class="scene" role="img" aria-label="light and shadow picture">`;
+  if (k === "near" || k === "far" || k === "screen" || k === "off") {
+    const lx = k === "near" ? 250 : k === "far" ? 70 : 150, on = k !== "off";
+    const sc = k === "near" ? 1.55 : k === "far" ? .62 : 1;
+    const dark = k === "off";
+    if (dark) s += `<rect x="0" y="0" width="640" height="300" rx="18" fill="#4b4766"/>`;
+    const showScreen = k !== "screen" || solved;
+    s += showScreen
+      ? `<rect x="452" y="30" width="160" height="240" rx="8" fill="${dark ? "#6d6888" : "#fff6da"}" stroke="${ink}" stroke-width="4"/>`
+      : `<rect x="452" y="30" width="160" height="240" rx="8" fill="none" stroke="${ink}" stroke-width="4" stroke-dasharray="14 10"/><text x="532" y="172" text-anchor="middle" font-family="Lilita One, sans-serif" font-size="70" fill="#9a9a9a">?</text>`;
+    if (on) s += `<polygon points="${lx},150 452,${150 - 95 * sc} 452,${150 + 95 * sc}" fill="#ffd43b" opacity=".28"/>`;
+    s += `<line x1="330" y1="178" x2="330" y2="250" stroke="${ink}" stroke-width="5" stroke-linecap="round"/>` + svgIcon("GiRabbit", 300, 118, 64, "#b49cff");
+    s += lamp(lx, 150, on);
+    s += `<text x="${lx}" y="210" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="${dark ? "#fff" : ink}">${k === "near" ? "near 近" : k === "far" ? "far 遠" : k === "off" ? "off 關燈" : "light 光"}</text>`;
+    if (k !== "screen" || solved) {
+      if (solved && on) { const sz = 70 * sc; s += `<g class="shadowgrow">${svgIcon("GiRabbit", 532 - sz / 2, 150 - sz / 2, sz, "#111")}</g>`; }
+      else if (!solved) s += `<text x="532" y="172" text-anchor="middle" font-family="Lilita One, sans-serif" font-size="70" fill="${dark ? "#c9c5e6" : "#9a9a9a"}">?</text>`;
+      else s += `<text x="532" y="160" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="22" fill="#fff">no shadow</text>`;
+    }
+  } else {
+    const high = k === "high";
+    const lx = high ? 300 : 70, ly = high ? 46 : 205;
+    s += `<rect x="0" y="246" width="640" height="54" fill="#d3f5ea"/><line x1="0" y1="246" x2="640" y2="246" stroke="${ink}" stroke-width="4"/>`;
+    s += lamp(lx, ly);
+    s += `<text x="${high ? 360 : 70}" y="${high ? 52 : 160}" text-anchor="${high ? "start" : "middle"}" font-family="Baloo 2, sans-serif" font-weight="800" font-size="20" fill="${ink}">${high ? "high 高" : "low 低"}</text>`;
+    const len = high ? 46 : 250;
+    if (solved) s += `<rect class="barGrow" x="312" y="238" width="${len}" height="16" rx="8" fill="#111" opacity=".8"/>`;
+    else s += `<text x="420" y="232" font-family="Lilita One, sans-serif" font-size="54" fill="#9a9a9a">?</text>`;
+    s += svgIcon("FaChild", 268, 128, 120, "#6ec3ff");
+  }
+  return s + "</svg>";
+}
+function bos() {
+  const g = S.bos, q = BOS[g.order[g.i]];
+  if (g.done) return endScreen("bos");
+  view.innerHTML = `
+    <div class="row">
+      <h2>Big or small?<span class="zh">影子大挑戰</span></h2>
+      <div class="progress">${g.order.map((_, j) => `<span class="dot ${j < g.i ? "done" : j === g.i ? "now" : ""}"></span>`).join("")}<span>${g.i + 1}/${g.order.length}</span></div>
+    </div>
+    <div class="q">
+      <div id="scn">${scene(q.k, g.solved)}</div>
+      <div>
+        <p class="prompt">${q.en}<span class="zh">${q.zh}</span></p>
+        <div class="opts" id="opts">${q.opts.map((o, j) => `<button class="btn" data-j="${j}" style="background:${["var(--sky)", "var(--pink)"][j]}">${o[0]}<small>${o[1]}</small></button>`).join("")}</div>
+        <div class="feedback" id="fb"></div>
+        <div id="nx"></div>
+      </div>
+    </div>`;
+  view.querySelectorAll("#opts .btn").forEach(b => b.addEventListener("click", () => answerBos(+b.dataset.j, b)));
+  if (g.solved) showSolved(q, false);
+}
+function answerBos(j, b) {
+  const g = S.bos, q = BOS[g.order[g.i]];
+  if (g.solved || b.classList.contains("wrong")) return;
+  if (j !== q.a) {
+    g.tries++; b.classList.add("wrong"); SFX.no();
+    $("fb").className = "feedback bad"; $("fb").innerHTML = `Oops! Try again.<span class="zh">再想一想，再試一次！</span>`;
+    return;
+  }
+  g.solved = true; SFX.ok(); confetti();
+  const pts = g.tries === 0 ? 1 : 0;
+  if (pts) addScore(S.turn, pts);
+  $("scn").innerHTML = scene(q.k, true);
+  showSolved(q, true, pts);
+}
+function showSolved(q, fresh, pts) {
+  const g = S.bos;
+  view.querySelectorAll("#opts .btn").forEach((b, j) => { if (j === q.a) b.classList.add("right"); });
+  $("fb").className = "feedback";
+  $("fb").innerHTML = `${q.say}<span class="zh">${q.sayZh}${fresh ? (pts ? `　${esc(teamName(S.turn))} +1` : "　（第二次才答對，這題不加分）") : ""}</span>`;
+  $("nx").innerHTML = `<button class="btn" id="next" style="background:var(--sun)">${g.i + 1 < g.order.length ? "Next ▶" : "Finish ▶"}<small>${g.i + 1 < g.order.length ? "下一題" : "看結果"}</small></button>`;
+  $("next").addEventListener("click", () => {
+    SFX.tap(); g.i++; g.tries = 0; g.solved = false;
+    if (g.i >= g.order.length) { g.done = true; return endScreen("bos"); }
+    nextTurn(); bos();
+  });
+}
+
+// ===== Game 2: Mystery box =====
+const MB = [
+  { ic: "FaSun", q: "What is it?", qz: "這是什麼？", a: "light", az: "光" },
+  { ic: "GiFlashlight", q: "What is it?", qz: "這是什麼？", a: "flashlight", az: "手電筒" },
+  { ic: "GiTheaterCurtains", q: "What is it?", qz: "這是什麼？", a: "screen", az: "布幕" },
+  { ic: "GiPuppet", q: "What is it?", qz: "這是什麼？", a: "puppet", az: "偶" },
+  { ic: "FaMoon", q: "Turn off the lights. It is ___.", qz: "關燈以後，變得___。", a: "dark", az: "暗暗的" },
+  { ic: "FaHandPaper", q: "We make hand shadows with our ___.", qz: "手影是用什麼做的？", a: "hands", az: "手" },
+  { ic: "GiRabbit", q: "What animal is it?", qz: "這是什麼動物的手影？", a: "It's a rabbit.", az: "是兔子。", shadow: true },
+  { ic: "GiTheaterCurtains", q: "Shadow play: Where is the light?", qz: "皮影戲的燈在哪裡？", a: "Behind the screen.", az: "在布幕後面。" },
+  { ic: "FaChild", q: "I follow you. I am dark. What am I?", qz: "猜猜我是誰？", a: "your shadow", az: "你的影子", shadow: true },
+];
+const PRIZES = [[1, "FaStar"], [1, "FaStar"], [2, "FaStar"], [2, "FaStar"], [3, "FaStar"], [3, "FaStar"], [5, "FaGift"], [-1, "FaGhost"], [-1, "FaGhost"]];
+const BOXC = ["var(--pink)", "var(--mint)", "var(--sun)", "var(--lilac)", "var(--sky)", "var(--peach)", "var(--pink)", "var(--mint)", "var(--sun)"];
+const LIGHT = ["var(--pink-l)", "var(--mint-l)", "var(--sun-l)", "var(--lilac-l)", "var(--sky-l)", "var(--peach-l)", "var(--pink-l)", "var(--mint-l)", "var(--sun-l)"];
+function newMb() { return { prizes: shuffle(PRIZES), open: {}, cur: null }; }
+function mb() {
+  const g = S.mb;
+  const left = 9 - Object.keys(g.open).length;
+  if (!left) return endScreen("mb");
+  view.innerHTML = `
+    <div class="row">
+      <h2>Mystery Box<span class="zh">神秘箱</span></h2>
+      <div class="progress">還剩 ${left} 個箱子</div>
+    </div>
+    <div class="boxes">${MB.map((_, i) => {
+      const o = g.open[i];
+      if (o) { const [v, ic] = g.prizes[i]; return `<div class="box open" aria-label="box ${i + 1} opened"><span class="pz" style="color:${v < 0 ? "var(--bad)" : "var(--ink)"}">${I(ic)}${v > 0 ? "+" + v : v}</span><span class="who">${esc(o)}</span></div>`; }
+      return `<button class="box" data-i="${i}" style="background:${BOXC[i]}">${i + 1}</button>`;
+    }).join("")}</div>`;
+  view.querySelectorAll("button.box").forEach(b => b.addEventListener("click", () => { SFX.tap(); openQ(+b.dataset.i); }));
+  if (g.cur !== null) openQ(g.cur);
+}
+function modal(html) {
+  closeModal();
+  const m = document.createElement("div"); m.className = "modal"; m.id = "modal"; m.innerHTML = `<div class="card">${html}</div>`;
+  $("stage").appendChild(m); return m;
+}
+function closeModal() { const m = $("modal"); if (m) m.remove(); }
+function openQ(i, stage = "q") {
+  const g = S.mb, it = MB[i]; g.cur = i;
+  const big = `<div class="big" style="background:${it.shadow ? "#fff6da" : LIGHT[i]};color:${it.shadow ? "#111" : "var(--ink)"}">${I(it.ic)}</div>`;
+  const head = `${big}<h3>Box ${i + 1}</h3><p class="prompt">${it.q}<span class="zh">${it.qz}</span></p>`;
+  let m;
+  if (stage === "q") {
+    m = modal(`${head}<div></div><div class="acts"><button class="btn plain" id="back">◀ Back<small>回箱子</small></button><button class="btn" id="show">Show answer<small>看答案</small></button></div>`);
+    m.querySelector("#show").addEventListener("click", () => { SFX.tap(); openQ(i, "a"); });
+  } else {
+    m = modal(`${head}<div class="ans">${it.a}<span class="zh">${it.az}</span></div>
+      <div class="acts"><button class="btn plain" id="back">◀ Back<small>回箱子</small></button><button class="btn no" id="wrong">Wrong ✗<small>答錯</small></button><button class="btn ok" id="right">Correct ✓<small>答對，打開箱子</small></button></div>`);
+    m.querySelector("#right").addEventListener("click", () => reveal(i));
+    m.querySelector("#wrong").addEventListener("click", () => { SFX.no(); g.cur = null; closeModal(); nextTurn(); mb(); });
+  }
+  m.querySelector("#back").addEventListener("click", () => { g.cur = null; closeModal(); });
+}
+function reveal(i) {
+  const g = S.mb, [v, ic] = g.prizes[i], who = teamName(S.turn);
+  g.open[i] = who; g.cur = null;
+  addScore(S.turn, v);
+  if (v > 0) { SFX.win(); confetti(); } else SFX.boo();
+  const m = modal(`<div class="big" style="background:${v > 0 ? "var(--sun)" : "#b7e36b"}">${I(ic)}</div>
+    <h3>Box ${i + 1}</h3>
+    <div class="prize">${v > 0 ? "+" + v : v}<small>${v > 0 ? (v === 5 ? "大獎！" : "") + esc(who) + " 加 " + v + " 分" : "Shadow monster! " + esc(who) + " 扣 1 分"}</small></div>
+    <div></div>
+    <div class="acts"><button class="btn" id="cont">OK ▶<small>換下一隊</small></button></div>`);
+  m.querySelector("#cont").addEventListener("click", () => { SFX.tap(); closeModal(); nextTurn(); mb(); });
+}
+
+// ===== End =====
+function endScreen(which) {
+  closeModal();
+  const [a, b] = S.scores, n0 = esc(teamName(0)), n1 = esc(teamName(1));
+  const title = a === b ? "It's a tie!" : (a > b ? n0 : n1) + " wins!";
+  const sub = a === b ? "平手！兩隊都好棒！" : "恭喜 " + (a > b ? n0 : n1) + "！";
+  view.innerHTML = `<div class="end"><div>
+    <div class="trophy">${I("FaTrophy")}</div>
+    <h2>${title}</h2>
+    <p class="prompt" style="text-align:center"><span class="zh">${sub}　${n0} ${a} : ${b} ${n1}</span></p>
+    <div class="opts" style="justify-content:center">
+      <button class="btn" id="again" style="background:var(--mint)">Play again<small>再玩一次</small></button>
+      <button class="btn plain" id="tomenu">Menu<small>回選單</small></button>
+      <button class="btn no" id="reset">Reset scores<small>分數歸零</small></button>
+    </div></div></div>`;
+  SFX.win(); confetti();
+  $("again").addEventListener("click", () => { if (which === "bos") S.bos = newBos(); else S.mb = newMb(); go(which); });
+  $("tomenu").addEventListener("click", () => { if (which === "bos") S.bos = null; else S.mb = null; go("menu"); });
+  const r = $("reset");
+  r.addEventListener("click", () => {
+    if (!r.dataset.armed) { r.dataset.armed = "1"; r.innerHTML = "Tap again<small>再點一次確認歸零</small>"; return; }
+    S.scores = [0, 0]; renderScores(); r.innerHTML = "Done<small>已歸零</small>"; r.disabled = true;
+  });
+}
+
+// ---------- boot (keeps scores across live updates) ----------
+function start(data) {
+  if (data && data.S) { S = Object.assign(S, data.S); if (data.names) data.names.forEach((n, t) => $("team" + t).value = n); }
+  $("snd").innerHTML = I(S.sound ? "FaVolumeUp" : "FaVolumeMute");
+  go(S.view || "menu");
+}
+window.claude?.hot?.snapshot?.(() => ({ S, names: [teamName(0), teamName(1)] }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
+
+</body>
+</html>
